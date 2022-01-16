@@ -43,6 +43,7 @@ import { CodeActionKind } from './utils/types';
 class ServerInitializingIndicator {
     private _loadingProjectName?: string;
     private _progressReporter?: ProgressReporter;
+    private _repeatProgressToken?: NodeJS.Timeout;
 
     constructor(private lspClient: LspClient) {}
 
@@ -54,6 +55,10 @@ class ServerInitializingIndicator {
                 this._progressReporter = undefined;
             }
         }
+        if (this._repeatProgressToken) {
+            clearInterval(this._repeatProgressToken);
+            delete this._repeatProgressToken;
+        }
     }
 
     public startedLoadingProject(projectName: string): void {
@@ -64,15 +69,14 @@ class ServerInitializingIndicator {
         this._loadingProjectName = projectName;
         this._progressReporter = this.lspClient.createProgressReporter();
         this._progressReporter.begin('Initializing JS/TS language features…');
+        this._repeatProgressToken = setInterval(() => {
+            this._progressReporter?.report('In Progress');
+        }, 500);
     }
 
     public finishedLoadingProject(projectName: string): void {
         if (this._loadingProjectName === projectName) {
-            this._loadingProjectName = undefined;
-            if (this._progressReporter) {
-                this._progressReporter.end();
-                this._progressReporter = undefined;
-            }
+            this.reset();
         }
     }
 }
